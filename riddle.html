@@ -24,7 +24,7 @@ ol{padding-left:20px}li{margin:4px 0}
 <div class=tabs><button id=tP onclick="show('p')">Participant</button><button id=tO class=sec onclick="show('o')">Owner</button></div>
 
 <section id=vp>
- <div class=card><p class=q id=question></p><div class=zoom><img class=pz id=pz alt="Puzzle picture" onclick="this.classList.toggle('big')"></div><small>Tap the picture to zoom.</small></div>
+ <div class=card><p class=q id=question></p><div class=zoom><img class=pz id=pz alt="Puzzle picture" onclick="openZ()"></div><small>Tap the picture to open full-screen 4K view (pinch or use +/- to zoom, drag to pan).</small></div>
  <div class=card>
   <label for=handle>Your handle</label><input id=handle placeholder="@yourname" autocomplete=off>
   <label for=answer>Your answer</label><input id=answer placeholder="What did you spot?" autocomplete=off>
@@ -54,12 +54,12 @@ ol{padding-left:20px}li{margin:4px 0}
  <b>Create your own riddle</b><p><small>Don't reuse this demo's keys. Run <code>tools/make_riddle.py --image your.png --answer "..." --passphrase-file secret.txt --question "..." --out my-riddle.html</code> from the repo. It makes a fresh keypair and puts the answer only inside the encrypted owner bundle. Host the HTML next to the image.</small></p></div>
 </main><div class=wm><b>AI</b> Finance Club</div>
 <script>
-const CFG={"pub": "BEZrQdwcJu57Q9IoG6JfcynaTXaOy0A4Y8UpRTjpyeVtinsry1UzFof+poEIDFtV2BSQnIJCkMwhQt84JV9Gfn4=", "owner": {"iter": 600000, "salt": "5SYdCkvLGDODoKStAxXECA==", "iv": "QWIleGGJ2IH5EwCv", "ct": "ZeoawOuZs9XNOxTI/rHHKnm4Z1N/bfYGyqbWRpY7DaGhkgpkuYIFBgoz7xgRUbE554R3v23i1WZcdiMa4vSb7KhB7X8u/+8PmJhK1tmWA5d5aj8WHuH9dRUJSFozNtHQZFfIAx6qphmWcgUQ5EYcwqPs6vN47MPbhvIke68/X2fSTA6I8u0kZMFbNOixB0NlyCUDBI4b4w28VZotuImZ4wwgLYkfRTZNLQY+xCkcAXQssUWtmNlagpSZpncQiLT62Zc8d8s3zDO0MHwcaUE6fg/zOtr8a4SUktcHHbtb7QJ6pUDXFKl5Fywr2z551x5buH6O"}, "image": "riddle_puzzle.png", "question": "A tiny gold coin is hiding on this aging report. Which invoice number is it sitting next to?", "title": "Spot it & answer in HEX"};
+const CFG={"pub": "BEZrQdwcJu57Q9IoG6JfcynaTXaOy0A4Y8UpRTjpyeVtinsry1UzFof+poEIDFtV2BSQnIJCkMwhQt84JV9Gfn4=", "owner": {"iter": 600000, "salt": "5SYdCkvLGDODoKStAxXECA==", "iv": "QWIleGGJ2IH5EwCv", "ct": "ZeoawOuZs9XNOxTI/rHHKnm4Z1N/bfYGyqbWRpY7DaGhkgpkuYIFBgoz7xgRUbE554R3v23i1WZcdiMa4vSb7KhB7X8u/+8PmJhK1tmWA5d5aj8WHuH9dRUJSFozNtHQZFfIAx6qphmWcgUQ5EYcwqPs6vN47MPbhvIke68/X2fSTA6I8u0kZMFbNOixB0NlyCUDBI4b4w28VZotuImZ4wwgLYkfRTZNLQY+xCkcAXQssUWtmNlagpSZpncQiLT62Zc8d8s3zDO0MHwcaUE6fg/zOtr8a4SUktcHHbtb7QJ6pUDXFKl5Fywr2z551x5buH6O"}, "image": "riddle_puzzle_4k.jpg", "question": "A tiny gold coin is hiding on this aging report. Which invoice number is it sitting next to?", "title": "Spot it & answer in HEX"};
 const $=id=>document.getElementById(id),te=new TextEncoder(),td=new TextDecoder();
 const ub=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));
 const hex=b=>[...b].map(x=>x.toString(16).padStart(2,'0')).join('').toUpperCase();
 const unhex=h=>new Uint8Array(h.match(/../g).map(x=>parseInt(x,16)));
-$('title').textContent=CFG.title;$('question').textContent=CFG.question;$('pz').src=CFG.image;
+$('title').textContent=CFG.title;$('question').textContent=CFG.question;$('pz').src=CFG.image.replace('_4k.jpg','_1600.jpg');
 function show(v){$('vp').hidden=v!=='p';$('vo').hidden=v!=='o';$('tP').className=v==='p'?'':'sec';$('tO').className=v==='o'?'':'sec';history.replaceState(null,'',v==='o'?'#owner':'#')}
 if(location.hash==='#owner')show('o');
 async function aesKey(shared){const ik=await crypto.subtle.importKey('raw',shared,'HKDF',false,['deriveKey']);
@@ -103,4 +103,9 @@ async function decodeAll(){ROWS=[];for(const line of $('codes').value.split(/\n/
 function csv(){if(!ROWS.length)return;const q=s=>'"'+String(s??'').replace(/"/g,'""')+'"';
  const t='handle,answer,time,result\n'+ROWS.map(r=>r.err?[q(''),q(''),q(''),q(r.err)].join(','):[q(r.handle),q(r.answer),q(r.ts),q(r.ok?'correct':'wrong')].join(',')).join('\n');
  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([t],{type:'text/csv'}));a.download='riddle_results.csv';a.click()}
-</script></body></html>
+</script><div id=zv style="display:none;position:fixed;inset:0;background:#000;z-index:99;overflow:auto;touch-action:pan-x pan-y pinch-zoom"><img id=zi style="width:100%;display:block;max-width:none"></div>
+<div id=zb style="display:none;position:fixed;top:10px;right:10px;z-index:100;gap:6px"><button onclick="zs(1.5)">+</button><button onclick="zs(1/1.5)">&minus;</button><button onclick="closeZ()">&times;</button></div>
+<script>let zf=1;function openZ(){const i=document.getElementById('zi');if(!i.src)i.src=CFG.image;zf=1;i.style.width='100%';document.getElementById('zv').style.display='block';document.getElementById('zb').style.display='flex'}
+function closeZ(){document.getElementById('zv').style.display='none';document.getElementById('zb').style.display='none'}
+function zs(k){const v=document.getElementById('zv'),cx=(v.scrollLeft+v.clientWidth/2)/zf,cy=(v.scrollTop+v.clientHeight/2)/zf;zf=Math.min(8,Math.max(1,zf*k));document.getElementById('zi').style.width=(100*zf)+'%';v.scrollLeft=cx*zf-v.clientWidth/2;v.scrollTop=cy*zf-v.clientHeight/2}</script>
+</body></html>
