@@ -82,6 +82,35 @@ for off,c,w in [(0,(120,85,30,255),9),(-2,(214,170,85,255),6)]:
     cd.rounded_rectangle((6+off,6+off,250+off,62+off),28,outline=c,width=w); cd.rounded_rectangle((36+off,18+off,220+off,50+off),16,outline=c,width=w-1)
 clip=clip.resize((int(260*sx*1.25),int(70*sx*1.25)),Image.LANCZOS).rotate(-12,expand=True,resample=Image.BICUBIC)
 X,Y=to_scene(PW-300,rows["INV-4417"]-150); obj(clip,(X,Y),(5,6),3,110)
+# v4: many extra yellow/gold decoy dots (fixed seed)
+r4=random.Random(4471)
+TINTS=[(250,225,110),(232,190,70),(205,165,45),(245,210,90),(220,180,95)]
+def blend_disc(X,Y,D,col,alpha,soft=0.8):
+    global o
+    D=max(6,int(D)); yy,xx=np.mgrid[-D:D,-D:D]/D; rr=np.hypot(xx,yy)
+    m=np.array(Image.fromarray(((rr<1)*255).astype(np.uint8)).resize((D,D),Image.LANCZOS).filter(ImageFilter.GaussianBlur(soft)),np.float32)[...,None]/255*alpha
+    x0,y0=int(X-D/2),int(Y-D/2); arr=np.array(o.convert("RGBA")); reg=arr[y0:y0+D,x0:x0+D,:3].astype(np.float32)
+    reg=reg*(1-m)+np.clip(reg*np.array(col)/255*1.18,0,255)*m; arr[y0:y0+D,x0:x0+D,:3]=reg.astype(np.uint8); o=Image.fromarray(arr)
+bad=dr.textbbox((cols[0],rows["INV-4471"]+12),"INV-4471",font=fm)
+def ok(px,py): return not (bad[0]-60<px<bad[2]+60 and bad[1]-60<py<bad[3]+60)
+# coin-like translucent discs over decoy numbers (no rim/rings)
+for v in ["INV-4417","INV-4741","INV-4744","INV-4477"]:
+    b=dr.textbbox((cols[0],rows[v]+12),v,font=fm); X,Y=to_scene(b[2]-2.2*24,(b[1]+b[3])/2); blend_disc(X,Y,30,(214,178,104),0.42,1.0)
+# dots over other numbers / names / amounts
+for v in ["INV-4474","INV-4447","INV-4714","INV-4102","INV-4307"]:
+    b=dr.textbbox((cols[0],rows[v]+12),v,font=fm); X,Y=to_scene(r4.uniform(b[0]+40,b[2]),(b[1]+b[3])/2)
+    blend_disc(X,Y,r4.choice([14,18,24,30]),r4.choice(TINTS),r4.uniform(0.35,0.9))
+n=0
+while n<14:
+    px,py=r4.uniform(150,1880),r4.uniform(420,ry)
+    if not ok(px,py): continue
+    X,Y=to_scene(px,py); blend_disc(X,Y,r4.choice([10,14,18,22,28,32]),r4.choice(TINTS),r4.uniform(0.3,0.95)); n+=1
+# desk dots around the paper (opaque sticky-dot style)
+n=0
+while n<9:
+    X,Y=r4.uniform(150,3700),r4.uniform(150,2050)
+    if quad[3][0]-60<X<quad[1][0]+80 and quad[0][1]-60<Y<quad[2][1]+60: continue
+    R=r4.choice([10,13,16]); obj(disc(R,r4.choice(TINTS),0.12),(X-R,Y-R),(3,4),3,90); n+=1
 # flat coin hidden ON TOP of the digits of INV-4471, top-down, low-opacity blend
 bb=dr.textbbox((cols[0],rows["INV-4471"]+12),"INV-4471",font=fm); X,Y=to_scene(bb[2]-2.2*dr.textlength("4",font=fm),(bb[1]+bb[3])/2)
 Dpx=int(round(44*sx*1.25)); S=16*Dpx
