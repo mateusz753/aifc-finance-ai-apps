@@ -1,0 +1,106 @@
+<!doctype html><html lang=en><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1">
+<title>AI Finance Club – Spot it & answer in HEX</title>
+<style>
+*{box-sizing:border-box}body{background:#0F172A;color:#e2e8f0;font-family:system-ui,sans-serif;margin:0;padding:16px}
+main{max-width:860px;margin:auto}h1{font-size:24px;margin:6px 0 2px}.sub{color:#94a3b8;margin:0 0 14px}
+.tabs{display:flex;gap:8px;margin:12px 0}.tabs button{flex:1}
+.card{background:#1e293b;border-radius:14px;padding:16px;margin:12px 0}
+img.pz{width:100%;border-radius:10px;display:block;cursor:zoom-in}img.pz.big{cursor:zoom-out;width:200%;max-width:none}
+.zoom{overflow:auto;border-radius:10px}
+label{display:block;font-size:13px;color:#94a3b8;margin:10px 0 4px}
+input,textarea{width:100%;background:#0F172A;color:#fff;border:1px solid #334155;border-radius:10px;padding:11px;font-size:16px}
+textarea{min-height:140px;font-family:ui-monospace,monospace;font-size:13px}
+button{background:#00a4ef;color:#fff;border:0;border-radius:10px;padding:11px 16px;font-size:15px;font-weight:600;cursor:pointer}
+button.sec{background:#334155}button:disabled{opacity:.5}
+.code{font-family:ui-monospace,monospace;font-size:13px;word-break:break-all;background:#0F172A;border:1px dashed #00a4ef;border-radius:10px;padding:12px;margin:10px 0;line-height:1.6}
+.err{color:#f87171}.ok{color:#4ade80}.q{font-size:17px;font-weight:600}
+table{width:100%;border-collapse:collapse;font-size:14px}th,td{padding:8px;border-bottom:1px solid #334155;text-align:left;word-break:break-word}
+.row{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}small{color:#94a3b8}
+.wm{position:fixed;right:10px;bottom:8px;font-size:12px;color:#64748b;opacity:.8;pointer-events:none}.wm b{color:#00a4ef}
+ol{padding-left:20px}li{margin:4px 0}
+</style></head><body><main>
+<p><a href="index.html" style="color:#94a3b8;text-decoration:none"><b style="color:#00a4ef">AI</b> Finance Club</a></p>
+<h1 id=title></h1><p class=sub>Find it, type your answer, paste the HEX code in the comments. Only the post owner can read it.</p>
+<div class=tabs><button id=tP onclick="show('p')">Participant</button><button id=tO class=sec onclick="show('o')">Owner</button></div>
+
+<section id=vp>
+ <div class=card><p class=q id=question></p><div class=zoom><img class=pz id=pz alt="Puzzle picture" onclick="this.classList.toggle('big')"></div><small>Tap the picture to zoom.</small></div>
+ <div class=card>
+  <label for=handle>Your handle</label><input id=handle placeholder="@yourname" autocomplete=off>
+  <label for=answer>Your answer</label><input id=answer placeholder="What did you spot?" autocomplete=off>
+  <div class=row><button id=gen onclick="gen()">Generate code</button></div>
+  <div id=out hidden><div class=code id=code></div><div class=row><button onclick="copyCode()">Copy code</button><span id=copied class=ok></span></div>
+  <small>Paste this whole code as your comment. Every click gives a different code, even for the same answer, so copying someone else's code reveals nothing.</small></div>
+  <p id=perr class=err></p>
+ </div>
+</section>
+
+<section id=vo hidden>
+ <div class=card id=login><b>Owner login</b>
+  <label for=pass>Passphrase</label><input id=pass type=password autocomplete=current-password>
+  <div class=row><button id=loginBtn onclick="login()">Unlock</button></div><p id=lerr class=err></p></div>
+ <div class=card id=dec hidden><b class=ok>✓ Unlocked</b>
+  <label for=codes>Paste comment codes (one per line; spaces, dashes, names and extra text are fine)</label>
+  <textarea id=codes></textarea>
+  <div class=row><button onclick="decodeAll()">Decode</button><button class=sec onclick="csv()">Export CSV</button></div>
+  <p id=sum></p><div style="overflow:auto"><table id=tbl></table></div></div>
+</section>
+
+<div class=card><b>How it works</b><ol>
+ <li>The page holds the owner's <i>public</i> key. Your handle, answer and a timestamp are encrypted in your browser (ECDH P-256 with a fresh one-time key + AES-256-GCM) and shown as HEX.</li>
+ <li>Nothing is sent anywhere. You paste the code in the comments yourself.</li>
+ <li>Only the owner's private key can decrypt it. That key and the correct answer sit in this page only encrypted with the owner's passphrase (PBKDF2-SHA256, 600k iterations + AES-GCM).</li>
+ <li>The owner unlocks, pastes all comments, and sees who answered correctly.</li></ol>
+ <b>Create your own riddle</b><p><small>Don't reuse this demo's keys. Run <code>tools/make_riddle.py --image your.png --answer "..." --passphrase-file secret.txt --question "..." --out my-riddle.html</code> from the repo. It makes a fresh keypair and puts the answer only inside the encrypted owner bundle. Host the HTML next to the image.</small></p></div>
+</main><div class=wm><b>AI</b> Finance Club</div>
+<script>
+const CFG=/*__CONFIG__*/null;
+const $=id=>document.getElementById(id),te=new TextEncoder(),td=new TextDecoder();
+const ub=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));
+const hex=b=>[...b].map(x=>x.toString(16).padStart(2,'0')).join('').toUpperCase();
+const unhex=h=>new Uint8Array(h.match(/../g).map(x=>parseInt(x,16)));
+$('title').textContent=CFG.title;$('question').textContent=CFG.question;$('pz').src=CFG.image;
+function show(v){$('vp').hidden=v!=='p';$('vo').hidden=v!=='o';$('tP').className=v==='p'?'':'sec';$('tO').className=v==='o'?'':'sec';history.replaceState(null,'',v==='o'?'#owner':'#')}
+if(location.hash==='#owner')show('o');
+async function aesKey(shared){const ik=await crypto.subtle.importKey('raw',shared,'HKDF',false,['deriveKey']);
+ return crypto.subtle.deriveKey({name:'HKDF',hash:'SHA-256',salt:new Uint8Array(0),info:te.encode('aifc-riddle-v1')},ik,{name:'AES-GCM',length:256},false,['encrypt','decrypt'])}
+// code layout: 0x01 | ephemeral pub (65) | iv (12) | ciphertext+tag
+async function gen(){$('perr').textContent='';const h=$('handle').value.trim(),a=$('answer').value.trim();
+ if(!h||!a){$('perr').textContent='Please enter your handle and an answer.';return}
+ try{const owner=await crypto.subtle.importKey('raw',ub(CFG.pub),{name:'ECDH',namedCurve:'P-256'},false,[]);
+  const eph=await crypto.subtle.generateKey({name:'ECDH',namedCurve:'P-256'},true,['deriveBits']);
+  const sh=await crypto.subtle.deriveBits({name:'ECDH',public:owner},eph.privateKey,256);
+  const k=await aesKey(sh),iv=crypto.getRandomValues(new Uint8Array(12));
+  const ct=new Uint8Array(await crypto.subtle.encrypt({name:'AES-GCM',iv},k,te.encode(JSON.stringify({handle:h,answer:a,ts:new Date().toISOString()}))));
+  const ep=new Uint8Array(await crypto.subtle.exportKey('raw',eph.publicKey));
+  const all=new Uint8Array([1,...ep,...iv,...ct]);
+  $('code').textContent='RQ1-'+hex(all).match(/.{1,8}/g).join(' ');$('out').hidden=false;$('copied').textContent='';
+ }catch(e){$('perr').textContent='Could not generate code: '+e.message}}
+async function copyCode(){try{await navigator.clipboard.writeText($('code').textContent);$('copied').textContent='Copied!'}catch(e){const r=document.createRange();r.selectNode($('code'));getSelection().removeAllRanges();getSelection().addRange(r);$('copied').textContent='Selected, press Ctrl/Cmd+C'}}
+let PRIV=null,ANS=[],ROWS=[];
+const norm=s=>String(s).normalize('NFKC').toUpperCase().replace(/[^A-Z0-9]/g,'');
+async function login(){$('lerr').textContent='';$('loginBtn').disabled=true;$('loginBtn').textContent='Unlocking…';
+ try{const o=CFG.owner,base=await crypto.subtle.importKey('raw',te.encode($('pass').value),'PBKDF2',false,['deriveKey']);
+  const k=await crypto.subtle.deriveKey({name:'PBKDF2',hash:'SHA-256',salt:ub(o.salt),iterations:o.iter},base,{name:'AES-GCM',length:256},false,['decrypt']);
+  let pt;try{pt=await crypto.subtle.decrypt({name:'AES-GCM',iv:ub(o.iv)},k,ub(o.ct))}catch(e){throw new Error('Wrong passphrase. Please try again.')}
+  const b=JSON.parse(td.decode(pt));PRIV=await crypto.subtle.importKey('jwk',b.jwk,{name:'ECDH',namedCurve:'P-256'},false,['deriveBits']);ANS=b.answers.map(norm);
+  $('login').hidden=true;$('dec').hidden=false;
+ }catch(e){$('lerr').textContent=e.message}finally{$('loginBtn').disabled=false;$('loginBtn').textContent='Unlock'}}
+function extract(line){const m=line.match(/RQ1[\s:-]*([0-9A-Fa-f][0-9A-Fa-f\s-]*)/);let h;
+ if(m)h=m[1].replace(/[\s-]/g,'');else{const runs=line.replace(/[\s-]/g,'').match(/[0-9A-Fa-f]{120,}/g);h=runs?runs.sort((a,b)=>b.length-a.length)[0]:null}
+ if(h&&h.length%2)h=h.slice(0,-1);return h}
+async function dec1(h){const b=unhex(h);if(b[0]!==1||b.length<95)throw new Error('not a v1 code');
+ const pub=await crypto.subtle.importKey('raw',b.slice(1,66),{name:'ECDH',namedCurve:'P-256'},false,[]);
+ const sh=await crypto.subtle.deriveBits({name:'ECDH',public:pub},PRIV,256);
+ return JSON.parse(td.decode(await crypto.subtle.decrypt({name:'AES-GCM',iv:b.slice(66,78)},await aesKey(sh),b.slice(78))))}
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+async function decodeAll(){ROWS=[];for(const line of $('codes').value.split(/\n/)){if(!line.trim())continue;const h=extract(line);
+  if(!h){ROWS.push({err:'no code found',raw:line});continue}
+  try{const d=await dec1(h);ROWS.push({handle:d.handle,answer:d.answer,ts:d.ts,ok:ANS.includes(norm(d.answer))})}catch(e){ROWS.push({err:'invalid / not for this riddle',raw:line})}}
+ const good=ROWS.filter(r=>r.ok).length,valid=ROWS.filter(r=>!r.err).length;
+ $('sum').innerHTML=`${valid} valid code(s), <span class=ok>${good} correct</span>, ${ROWS.length-valid} unreadable.`;
+ $('tbl').innerHTML='<tr><th>Handle</th><th>Answer</th><th>Time</th><th>Result</th></tr>'+ROWS.map(r=>r.err?`<tr><td colspan=3><small>${esc(r.raw.slice(0,60))}</small></td><td class=err>${r.err}</td></tr>`:`<tr><td>${esc(r.handle)}</td><td>${esc(r.answer)}</td><td>${esc(new Date(r.ts).toLocaleString())}</td><td class=${r.ok?'ok':'err'}>${r.ok?'✓ correct':'✗ wrong'}</td></tr>`).join('')}
+function csv(){if(!ROWS.length)return;const q=s=>'"'+String(s??'').replace(/"/g,'""')+'"';
+ const t='handle,answer,time,result\n'+ROWS.map(r=>r.err?[q(''),q(''),q(''),q(r.err)].join(','):[q(r.handle),q(r.answer),q(r.ts),q(r.ok?'correct':'wrong')].join(',')).join('\n');
+ const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([t],{type:'text/csv'}));a.download='riddle_results.csv';a.click()}
+</script></body></html>
